@@ -1,0 +1,76 @@
+version: '3.8'
+
+networks:
+  app_net:
+    driver: bridge
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - app_net
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/mapapp
+    depends_on:
+      - db
+    networks:
+      - app_net
+
+  db:
+    image: postgis/postgis:15-3.3
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mapapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_net
+
+  mqtt_service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mqtt
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/mapapp
+      # Using test.mosquitto.org with TLS
+      - MQTT_BROKER=test.mosquitto.org
+      - MQTT_PORT=1883
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      - app_net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    depends_on:
+      - db
+    networks:
+      - app_net
+
+volumes:
+  postgres_data:

@@ -1,0 +1,24 @@
+FROM python:3.11
+
+WORKDIR /app
+
+# Install system dependencies, CA certificates, and curl
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    ca-certificates \
+    curl \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Make mqtt_runner.py executable
+# Download mosquitto.org certificate
+RUN curl -o mosquitto.org.crt https://test.mosquitto.org/ssl/mosquitto.org.crt
+
+RUN chmod +x mqtt_runner.py
+
+CMD ["python", "mqtt_runner.py"]

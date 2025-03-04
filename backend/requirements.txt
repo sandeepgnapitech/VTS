@@ -1,0 +1,15 @@
+numpy==1.24.3
+paho-mqtt==1.6.1
+certifi>=2023.7.22
+fastapi==0.104.1
+uvicorn==0.24.0
+python-dotenv==1.0.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+python-jose==3.3.0
+passlib==1.7.4
+python-multipart==0.0.6
+pydantic==2.4.2
+pydantic-settings==2.0.3
+GeoAlchemy2==0.14.1
+Shapely==2.0.1

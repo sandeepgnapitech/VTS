@@ -1,0 +1,122 @@
+.map-panel-container {
+  pointer-events: all;
+}
+
+.map-panel-container.adjacent {
+  display: flex;
+  align-items: center;
+}
+
+.map-panel-container.adjacent:first-child {
+  order: 0;
+}
+
+.map-panel-container.adjacent:last-child {
+  order: 2;
+}
+
+/* Base panel styles */
+.map-panel {
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+/* Position-specific toolbar styles */
+.map-panel-left, .map-panel-right {
+  max-width: 45px;
+}
+
+.map-panel-left .ant-space-item, 
+.map-panel-right .ant-space-item {
+  margin: 4px 0;
+}
+
+.map-panel-top .ant-space-item, 
+.map-panel-bottom .ant-space-item {
+  margin: 0 4px;
+}
+
+/* Button adjustments for vertical toolbars */
+.map-panel-left button, 
+.map-panel-right button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Panel content styles */
+.map-panel-content {
+  padding: 16px;
+  height: 100%;
+  width: 100%;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* Handle content visibility during transitions */
+.map-panel[style*="width: 0"] .map-panel-content,
+.map-panel[style*="height: 0"] .map-panel-content,
+.map-panel[style*="transform: translateY(100%)"] .map-panel-content {
+  opacity: 0;
+}
+
+/* Bottom panel specific styles */
+.map-panel-container[data-position="bottom"] {
+  margin: 0 10px;
+  padding-bottom: 32px; /* Fixed space for the button */
+}
+
+.map-panel-container[data-position="bottom"] .map-panel {
+  transform-origin: bottom;
+  position: relative;
+  margin-bottom: 0;
+}
+
+.map-panel-container[data-position="bottom"].adjacent {
+  padding-bottom: 32px; /* Maintain space for button in adjacent mode */
+}
+
+/* Button styles */
+.map-panel-button {
+  pointer-events: all;
+  border-radius: 2px;
+  background: white !important;
+  border: 1px solid #d9d9d9 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.map-panel-button:hover {
+  background: #fafafa !important;
+}
+
+/* Bottom panel button styles */
+.map-panel-container[data-position="bottom"] .map-panel-button {
+  width: 32px;
+  height: 32px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: none; /* Remove transition to keep button position fixed */
+  bottom: 0;
+  margin-bottom: 0;
+}
+
+.map-panel-container[data-position="bottom"].adjacent .map-panel-button {
+  position: absolute;
+  bottom: 0;
+}
+
+/* Zoom Slider Button Styles */
+.custom-zoom-slider .zoom-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
