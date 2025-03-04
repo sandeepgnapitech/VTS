@@ -177,25 +177,43 @@ void setup() {
      GSMSerial.begin(GSM_BAUD, SERIAL_8N1, GSM_RX, GSM_TX);
      
    // Setup networking
-     WiFi.persistent(false);  // Don't save WiFi credentials in flash to avoid corruption
-     WiFi.mode(WIFI_STA);    // Set WiFi mode before attempting connection
-     WiFi.disconnect(true);   // Disconnect and clear any previous settings
-     delay(1000);            // Wait for WiFi cleanup
+     WiFi.persistent(false);       // Don't save WiFi credentials in flash
+     WiFi.mode(WIFI_OFF);         // First turn WiFi off
+     delay(100);
+     WiFi.mode(WIFI_STA);         // Then set mode to station
+     delay(100);
+     WiFi.disconnect(true);       // Ensure we're disconnected
+     delay(1000);                 // Give it time to complete
      
      Serial.println("\nAttempting WiFi connection...");
-     WiFi.begin(credentials.ssid, credentials.pass);
-     delay(5000);  // Give more time for initial connection
+     Serial.println("SSID: " + String(credentials.ssid));
      
-     bool connected = (WiFi.status() == WL_CONNECTED);
-     if (!connected) {
-       Serial.println("Initial connection failed, retrying...");
-       WiFi.disconnect();
-       delay(1000);
-       WiFi.begin(credentials.ssid, credentials.pass);
-       delay(5000);
+     WiFi.begin(credentials.ssid, credentials.pass);
+     
+     // Wait up to 20 seconds for connection
+     int timeout = 40; // 40 * 500ms = 20 seconds
+     while (WiFi.status() != WL_CONNECTED && timeout > 0) {
+       delay(500);
+       Serial.print(".");
+       timeout--;
+       
+       // Print status every 5 seconds
+       if (timeout % 10 == 0) {
+         Serial.println();
+         Serial.print("Status: ");
+         switch(WiFi.status()) {
+           case WL_IDLE_STATUS: Serial.println("IDLE"); break;
+           case WL_NO_SSID_AVAIL: Serial.println("NO SSID"); break;
+           case WL_SCAN_COMPLETED: Serial.println("SCAN DONE"); break;
+           case WL_CONNECT_FAILED: Serial.println("CONNECT FAILED"); break;
+           case WL_CONNECTION_LOST: Serial.println("CONN LOST"); break;
+           case WL_DISCONNECTED: Serial.println("DISCONNECTED"); break;
+           default: Serial.println(WiFi.status());
+         }
+       }
      }
      
-     connected = (WiFi.status() == WL_CONNECTED);
+     bool connected = (WiFi.status() == WL_CONNECTED);
      
      if (!connected) {
        Serial.println("\nAll WiFi connection attempts failed");
@@ -410,44 +428,72 @@ bool loadCredentials() {
    return true;
 }
  
-// Connect to WiFi
+// Connect to WiFi with proper mode setting and error handling
 bool connectWiFi() {
-   Serial.print("\nConnecting to WiFi SSID: ");
-   Serial.println(credentials.ssid);
-   
-   WiFi.disconnect(true);
-   delay(1000);
-   
-   WiFi.begin(credentials.ssid, credentials.pass);
-   
-   int attempts = 30; // Increase timeout to 15 seconds
-   while (WiFi.status() != WL_CONNECTED && attempts--) {
-     delay(500);
-     Serial.print(".");
-   }
-   Serial.println();
-   
-   isWiFiConnected = (WiFi.status() == WL_CONNECTED);
-   
-   if (isWiFiConnected) {
-     Serial.println("Connected to WiFi!");
-     Serial.print("IP address: ");
-     Serial.println(WiFi.localIP());
-     Serial.print("Signal strength: ");
-     Serial.print(WiFi.RSSI());
-     Serial.println(" dBm");
-   } else {
-     Serial.print("Failed to connect. Status: ");
-     switch(WiFi.status()) {
-       case WL_NO_SSID_AVAIL: Serial.println("SSID not found"); break;
-       case WL_CONNECT_FAILED: Serial.println("Wrong password"); break;
-       case WL_IDLE_STATUS: Serial.println("Idle"); break;
-       case WL_DISCONNECTED: Serial.println("Disconnected"); break;
-       default: Serial.println(WiFi.status());
-     }
-   }
-   
-   return isWiFiConnected;
+  Serial.println("\nInitializing WiFi connection...");
+  
+  // Ensure clean WiFi state
+  WiFi.mode(WIFI_OFF);
+  delay(100);
+  WiFi.mode(WIFI_STA);
+  delay(100);
+  WiFi.disconnect(true);
+  delay(1000);
+  
+  Serial.print("Connecting to SSID: ");
+  Serial.println(credentials.ssid);
+  
+  WiFi.begin(credentials.ssid, credentials.pass);
+  
+  // Wait up to 15 seconds
+  int timeout = 30; // 30 * 500ms = 15 seconds
+  while (timeout > 0) {
+    if (WiFi.status() == WL_CONNECTED) {
+      break;
+    }
+    
+    delay(500);
+    Serial.print(".");
+    timeout--;
+    
+    // Show status every 2.5 seconds
+    if (timeout % 5 == 0) {
+      Serial.println();
+      Serial.print("Current status: ");
+      switch(WiFi.status()) {
+        case WL_IDLE_STATUS: Serial.println("IDLE"); break;
+        case WL_NO_SSID_AVAIL: Serial.println("NO SSID"); break;
+        case WL_SCAN_COMPLETED: Serial.println("SCAN DONE"); break;
+        case WL_CONNECT_FAILED: Serial.println("CONNECT FAILED"); break;
+        case WL_CONNECTION_LOST: Serial.println("CONN LOST"); break;
+        case WL_DISCONNECTED: Serial.println("DISCONNECTED"); break;
+        default: Serial.println(WiFi.status());
+      }
+    }
+  }
+  
+  isWiFiConnected = (WiFi.status() == WL_CONNECTED);
+  
+  if (isWiFiConnected) {
+    Serial.println("\nWiFi Connected!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("Signal: ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
+  } else {
+    Serial.println("\nWiFi Connection Failed");
+    Serial.print("Final status: ");
+    switch(WiFi.status()) {
+      case WL_NO_SSID_AVAIL: Serial.println("SSID not found"); break;
+      case WL_CONNECT_FAILED: Serial.println("Wrong password"); break;
+      case WL_IDLE_STATUS: Serial.println("Idle - possible chip issue"); break;
+      case WL_DISCONNECTED: Serial.println("Disconnected - check credentials"); break;
+      default: Serial.println(WiFi.status());
+    }
+  }
+  
+  return isWiFiConnected;
 }
  
  // Setup GSM connection
