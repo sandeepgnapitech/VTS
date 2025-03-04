@@ -176,19 +176,26 @@ void setup() {
      GPSSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
      GSMSerial.begin(GSM_BAUD, SERIAL_8N1, GSM_RX, GSM_TX);
      
-     // Setup networking
-     WiFi.persistent(true);  // Save WiFi credentials in flash
-     WiFi.setAutoReconnect(true);  // Enable auto-reconnect
+   // Setup networking
+     WiFi.persistent(false);  // Don't save WiFi credentials in flash to avoid corruption
+     WiFi.mode(WIFI_STA);    // Set WiFi mode before attempting connection
+     WiFi.disconnect(true);   // Disconnect and clear any previous settings
+     delay(1000);            // Wait for WiFi cleanup
      
-     // Try WiFi connection with multiple attempts
-     bool connected = false;
-     for (int i = 0; i < 3 && !connected; i++) {  // Try 3 times
-       if (i > 0) {
-         Serial.printf("\nRetrying WiFi connection (attempt %d/3)...\n", i + 1);
-         delay(1000);  // Wait between attempts
-       }
-       connected = connectWiFi();
+     Serial.println("\nAttempting WiFi connection...");
+     WiFi.begin(credentials.ssid, credentials.pass);
+     delay(5000);  // Give more time for initial connection
+     
+     bool connected = (WiFi.status() == WL_CONNECTED);
+     if (!connected) {
+       Serial.println("Initial connection failed, retrying...");
+       WiFi.disconnect();
+       delay(1000);
+       WiFi.begin(credentials.ssid, credentials.pass);
+       delay(5000);
      }
+     
+     connected = (WiFi.status() == WL_CONNECTED);
      
      if (!connected) {
        Serial.println("\nAll WiFi connection attempts failed");
@@ -380,23 +387,40 @@ void loop() {
  }
  
  // Load saved configuration
- bool loadCredentials() {
+bool loadCredentials() {
    EEPROM.get(0, credentials);
-   return strlen(credentials.ssid) > 0 && strlen(credentials.deviceId) > 0;
- }
+   
+   // Basic validation of WiFi credentials
+   if (strlen(credentials.ssid) == 0 || strlen(credentials.ssid) >= 32) {
+     Serial.println("Invalid SSID in EEPROM");
+     return false;
+   }
+   if (strlen(credentials.pass) == 0 || strlen(credentials.pass) >= 64) {
+     Serial.println("Invalid WiFi password in EEPROM");
+     return false;
+   }
+   if (strlen(credentials.deviceId) == 0) {
+     Serial.println("Invalid device ID in EEPROM");
+     return false;
+   }
+   
+   Serial.println("Loaded WiFi credentials:");
+   Serial.println("SSID: " + String(credentials.ssid));
+   Serial.println("Password length: " + String(strlen(credentials.pass)));
+   return true;
+}
  
- // Connect to WiFi
- bool connectWiFi() {
-   Serial.print("Connecting to WiFi SSID: ");
+// Connect to WiFi
+bool connectWiFi() {
+   Serial.print("\nConnecting to WiFi SSID: ");
    Serial.println(credentials.ssid);
    
-   WiFi.mode(WIFI_STA);
-   WiFi.disconnect();
-   delay(100);
+   WiFi.disconnect(true);
+   delay(1000);
    
    WiFi.begin(credentials.ssid, credentials.pass);
-   int attempts = 20;
    
+   int attempts = 30; // Increase timeout to 15 seconds
    while (WiFi.status() != WL_CONNECTED && attempts--) {
      delay(500);
      Serial.print(".");
@@ -406,14 +430,25 @@ void loop() {
    isWiFiConnected = (WiFi.status() == WL_CONNECTED);
    
    if (isWiFiConnected) {
-     Serial.print("Connected! IP address: ");
+     Serial.println("Connected to WiFi!");
+     Serial.print("IP address: ");
      Serial.println(WiFi.localIP());
+     Serial.print("Signal strength: ");
+     Serial.print(WiFi.RSSI());
+     Serial.println(" dBm");
    } else {
-     Serial.println("Failed to connect to WiFi");
+     Serial.print("Failed to connect. Status: ");
+     switch(WiFi.status()) {
+       case WL_NO_SSID_AVAIL: Serial.println("SSID not found"); break;
+       case WL_CONNECT_FAILED: Serial.println("Wrong password"); break;
+       case WL_IDLE_STATUS: Serial.println("Idle"); break;
+       case WL_DISCONNECTED: Serial.println("Disconnected"); break;
+       default: Serial.println(WiFi.status());
+     }
    }
    
    return isWiFiConnected;
- }
+}
  
  // Setup GSM connection
  void setupGSM() {
