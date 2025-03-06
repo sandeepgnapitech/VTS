@@ -168,15 +168,26 @@ void setup() {
    
    pinMode(MQ3_PIN, INPUT);
    
+   // Initialize peripherals first, regardless of boot state
+   Serial.println("Initializing GPS module...");
+   GPSSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
+   delay(1000);
+   
+   if (!GPSSerial) {
+     Serial.println("Failed to initialize GPS Serial!");
+   } else {
+     Serial.println("GPS Serial initialized successfully");
+   }
+   
+   Serial.println("Initializing GSM module...");
+   GSMSerial.begin(GSM_BAUD, SERIAL_8N1, GSM_RX, GSM_TX);
+   delay(1000);
+   
    if (isFirstBoot() || !loadCredentials()) {
      Serial.println("No valid credentials - Starting AP mode");
      setupAP();
    } else {
-     // Initialize peripherals
-     GPSSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX, GPS_TX);
-     GSMSerial.begin(GSM_BAUD, SERIAL_8N1, GSM_RX, GSM_TX);
-     
-   // Setup networking
+     // Setup networking after peripherals are initialized
      WiFi.persistent(false);       // Don't save WiFi credentials in flash
      WiFi.mode(WIFI_OFF);         // First turn WiFi off
      delay(100);
@@ -185,8 +196,32 @@ void setup() {
      WiFi.disconnect(true);       // Ensure we're disconnected
      delay(1000);                 // Give it time to complete
      
+     Serial.println("\nScanning for WiFi networks...");
+     int numNetworks = WiFi.scanNetworks();
+     Serial.println("Scan completed");
+     
+     if (numNetworks == 0) {
+       Serial.println("No networks found!");
+     } else {
+       Serial.printf("%d networks found:\n", numNetworks);
+       bool foundNetwork = false;
+       
+       for (int i = 0; i < numNetworks; i++) {
+         Serial.printf("%d: %s (Signal: %d dBm)\n", i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+         if (WiFi.SSID(i) == String(credentials.ssid)) {
+           foundNetwork = true;
+           Serial.println("Found configured network!");
+         }
+       }
+       
+       if (!foundNetwork) {
+         Serial.println("WARNING: Configured network not found in scan results!");
+       }
+     }
+     
      Serial.println("\nAttempting WiFi connection...");
-     Serial.println("SSID: " + String(credentials.ssid));
+     Serial.printf("SSID: '%s' (length: %d)\n", credentials.ssid, strlen(credentials.ssid));
+     Serial.printf("Password length: %d\n", strlen(credentials.pass));
      
      WiFi.begin(credentials.ssid, credentials.pass);
      
@@ -408,23 +443,58 @@ void loop() {
 bool loadCredentials() {
    EEPROM.get(0, credentials);
    
-   // Basic validation of WiFi credentials
-   if (strlen(credentials.ssid) == 0 || strlen(credentials.ssid) >= 32) {
-     Serial.println("Invalid SSID in EEPROM");
-     return false;
-   }
-   if (strlen(credentials.pass) == 0 || strlen(credentials.pass) >= 64) {
-     Serial.println("Invalid WiFi password in EEPROM");
-     return false;
-   }
-   if (strlen(credentials.deviceId) == 0) {
-     Serial.println("Invalid device ID in EEPROM");
-     return false;
-   }
+   // Ensure null termination
+   credentials.ssid[sizeof(credentials.ssid) - 1] = '\0';
+   credentials.pass[sizeof(credentials.pass) - 1] = '\0';
+   credentials.deviceId[sizeof(credentials.deviceId) - 1] = '\0';
    
-   Serial.println("Loaded WiFi credentials:");
-   Serial.println("SSID: " + String(credentials.ssid));
-   Serial.println("Password length: " + String(strlen(credentials.pass)));
+   // Detailed validation
+   Serial.println("\nValidating stored credentials:");
+   Serial.println("----------------------------------------");
+   
+   // Check SSID
+   if (strlen(credentials.ssid) == 0) {
+     Serial.println("ERROR: Empty SSID");
+     return false;
+   }
+   if (strlen(credentials.ssid) >= 32) {
+     Serial.println("ERROR: SSID too long");
+     return false;
+   }
+   Serial.printf("SSID: '%s'\n", credentials.ssid);
+   Serial.printf("SSID length: %d chars\n", strlen(credentials.ssid));
+   
+   // Check password
+   if (strlen(credentials.pass) == 0) {
+     Serial.println("ERROR: Empty password");
+     return false;
+   }
+   if (strlen(credentials.pass) >= 64) {
+     Serial.println("ERROR: Password too long");
+     return false;
+   }
+   Serial.printf("Password length: %d chars\n", strlen(credentials.pass));
+   
+   // Check device ID
+   if (strlen(credentials.deviceId) == 0) {
+     Serial.println("ERROR: Empty device ID");
+     return false;
+   }
+   if (strlen(credentials.deviceId) >= 37) {
+     Serial.println("ERROR: Device ID too long");
+     return false;
+   }
+   Serial.printf("Device ID: %s\n", credentials.deviceId);
+   
+   // Print raw bytes of SSID for debugging
+   Serial.print("Raw SSID bytes: ");
+   for (int i = 0; i < sizeof(credentials.ssid) && credentials.ssid[i] != '\0'; i++) {
+     Serial.printf("%02X ", (uint8_t)credentials.ssid[i]);
+   }
+   Serial.println();
+   
+   Serial.println("----------------------------------------");
+   Serial.println("Credential validation passed");
    return true;
 }
  
@@ -525,64 +595,67 @@ bool connectWiFi() {
    return response;
  }
  
- // Process GPS data
- void handleGPS() {
-   while (GPSSerial.available()) {
-     if (gps.encode(GPSSerial.read()) && 
-         gps.location.isValid() && 
-         millis() - lastPublish > publishInterval) {
-       publishData();
-       lastPublish = millis();
-     }
-   }
- }
- 
- // Handle connection state
- void handleConnections() {
-   if (WiFi.status() == WL_CONNECTED) {
-     if (!isWiFiConnected) {
-       isWiFiConnected = true;
-       isGSMConnected = false;
-     }
-     if (!client.connected()) {
-       String clientId = "GNAPI-" + String(credentials.deviceId);
-       client.connect(clientId.c_str());
-     }
-     client.loop();
-   } else if (isWiFiConnected) {
-     Serial.println("WiFi connection lost");
-     isWiFiConnected = false;
-     if (!connectWiFi()) { // Try to reconnect to WiFi first
-       Serial.println("WiFi reconnection failed, switching to GSM");
-       setupGSM();
-     }
-   }
- }
- 
- // Publish sensor data
- void publishData() {
-   StaticJsonDocument<200> doc;
-   doc["device_id"] = credentials.deviceId;
-   doc["latitude"] = gps.location.lat();
-   doc["longitude"] = gps.location.lng();
-   doc["speed"] = gps.speed.kmph();
-   doc["satellites"] = gps.satellites.value();
-   doc["connection"] = isWiFiConnected ? "WiFi" : "GSM";
-   
-   float alcoholLevel = 0;
-   for (int i = 0; i < MQ3_SAMPLES; i++) {
-     alcoholLevel += analogRead(MQ3_PIN);
-     delay(MQ3_SAMPLE_INTERVAL / MQ3_SAMPLES);
-   }
-   alcoholLevel /= MQ3_SAMPLES;
-   doc["alcohol_mg_l"] = alcoholLevel * (3.3 / 4095.0);
-   
-   char jsonBuffer[200];
-   serializeJson(doc, jsonBuffer);
-   
-   if (isWiFiConnected) {
-     client.publish((String(mqtt_topic_prefix) + credentials.deviceId + mqtt_topic_suffix).c_str(), jsonBuffer);
-   } else if (isGSMConnected) {
-     // Implementation for GSM MQTT publish
-   }
- }
+// Process GPS data
+void handleGPS() {
+  static unsigned long lastGPSCheck = 0;
+  static bool gpsStatus = false;
+  static bool printedNoData = false;
+  static uint32_t processedChars = 0;
+  static uint32_t failedChecksums = 0;
+
+  // Check GPS module status every 5 seconds
+  if (millis() - lastGPSCheck > 5000) {
+    if (GPSSerial.available()) {
+      if (!gpsStatus) {
+        Serial.println("\nGPS module is responding");
+        Serial.println("Waiting for valid NMEA data...");
+        gpsStatus = true;
+        printedNoData = false;
+      }
+      Serial.printf("Stats - Processed: %u chars, Failed checksums: %u\n", 
+                   processedChars, failedChecksums);
+    } else {
+      if (!printedNoData) {
+        Serial.println("\nWARNING: No data from GPS module");
+        Serial.println("Please check:");
+        Serial.println("1. GPS module power");
+        Serial.println("2. TX/RX connections (GPS_TX -> ESP32_RX, GPS_RX -> ESP32_TX)");
+        Serial.println("3. Correct baud rate setting");
+        printedNoData = true;
+        gpsStatus = false;
+      }
+    }
+    lastGPSCheck = millis();
+  }
+
+  // Process available GPS data
+  while (GPSSerial.available() > 0) {
+    char c = GPSSerial.read();
+    processedChars++;
+    
+    if (gps.encode(c)) {
+      if (gps.failedChecksum()) {
+        failedChecksums++;
+        Serial.println("Warning: Failed GPS checksum");
+      }
+      
+      // Print GPS details whenever new valid data arrives
+      if (gps.location.isUpdated()) {
+        Serial.print("\nGPS Location: ");
+        Serial.print(gps.location.lat(), 6);
+        Serial.print(", ");
+        Serial.println(gps.location.lng(), 6);
+        Serial.print("Satellites: ");
+        Serial.println(gps.satellites.value());
+        Serial.print("HDOP: ");
+        Serial.println(gps.hdop.value());
+        
+        // Only publish if we have a valid fix and enough time has passed
+        if (gps.location.isValid() && millis() - lastPublish > publishInterval) {
+          publishData();
+          lastPublish = millis();
+        }
+      }
+    }
+  }
+}
