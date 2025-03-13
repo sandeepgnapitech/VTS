@@ -72,5 +72,20 @@ services:
     networks:
       - app_net
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN,"eyJhIjoiZmZlMTE5MjcyNzlmNzMzZmNmOGNmYzg1MDcyZDczNTciLCJ0IjoiMmZiYWI0ZTEtNDgxYi00NTY4LTg1NDMtMDBiNjI4ODc3ZTMwIiwicyI6Ik9EYzRZVGxtTnpBdE9UQm1aQzAwWkdFeUxUazJNRGd0TURVMk56TXlaR0ZrTXprMCJ9"}
+    networks:
+      - app_net
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+
+      ## docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token 
+
+
 volumes:
   postgres_data:
