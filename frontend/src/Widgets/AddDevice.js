@@ -33,7 +33,7 @@ const AddDevice = () => {
       };
 
       // Make POST request
-      const response = await axios.post('http://localhost:8000/device/', payload);
+      const response = await axios.post('https://api.gnapitech.org/device/', payload);
 
       if (response.status === 200 || response.status === 201) {
         message.success('Device created successfully');

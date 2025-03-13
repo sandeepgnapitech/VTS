@@ -409,7 +409,7 @@ const GPSLoggerInfo = ({ map }) => {
     const fetchDevices = async () => {
       const hide = message.loading('Loading devices...', 0);
       try {
-        const response = await axios.get('http://localhost:8000/device/');
+        const response = await axios.get('https://api.gnapitech.org/device/');
         if (isMounted) {
           setDevices(response.data);
           if (response.data.length === 0) {
@@ -563,7 +563,7 @@ const GPSLoggerInfo = ({ map }) => {
 
       console.log('Fetching logs with date range:', { start, end }); // Debug log
       
-      const response = await axios.get(`http://localhost:8000/device/${device}/logs/`, {
+      const response = await axios.get(`https://api.gnapitech.org/device/${device}/logs/`, {
         params: {
           start_date: start,
           end_date: end,
@@ -674,7 +674,7 @@ const GPSLoggerInfo = ({ map }) => {
         onFinish={handleSubmit}
         initialValues={{
           drawMode: 'point',
-          dateRange: [moment().subtract(1, 'days'), moment()]
+          dateRange: [moment().subtract(24, 'hours'), moment()]
         }}
       >
         <Form.Item
@@ -693,31 +693,22 @@ const GPSLoggerInfo = ({ map }) => {
 
         <Form.Item
           name="dateRange"
-          label="Date Range"
-          rules={[{ required: true, message: 'Please select date range' }]}
+          label="Select Time Range"
+          rules={[{ required: true, message: 'Please select time range' }]}
         >
-          <RangePicker 
-            showTime={{ format: 'HH:mm:ss' }}
-            format="YYYY-MM-DD HH:mm:ss"
+          <RangePicker
+            showTime={{ format: 'HH:mm' }}
+            format="YYYY-MM-DD HH:mm"
             style={{ width: '100%' }}
             ranges={{
+              'Today': [moment().startOf('day'), moment()],
+              'Yesterday': [
+                moment().subtract(1, 'day').startOf('day'),
+                moment().subtract(1, 'day').endOf('day')
+              ],
               'Last 24 Hours': [moment().subtract(24, 'hours'), moment()],
               'Last 7 Days': [moment().subtract(7, 'days'), moment()],
-              'Last 30 Days': [moment().subtract(30, 'days'), moment()]
-            }}
-            defaultValue={[moment().subtract(24, 'hours'), moment()]}
-            onOk={(dates) => {
-              // Only update when user clicks OK
-              if (dates?.length === 2) {
-                const [start, end] = dates.map(date => 
-                  moment(date).startOf('second')
-                );
-                if (start && end) {
-                  form.setFieldsValue({
-                    dateRange: [start, end]
-                  });
-                }
-              }
+              'This Month': [moment().startOf('month'), moment()]
             }}
           />
         </Form.Item>

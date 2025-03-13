@@ -14,7 +14,7 @@ app = FastAPI(title="MapApp API")
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://localhost:8000"],
+    allow_origins=["https://map.gnapitech.org","https://api.gnapitech.org"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
