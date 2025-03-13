@@ -12,8 +12,8 @@ class Device(Base):
     name = Column(String, index=True)
     description = Column(String)
     data = Column(JSON)
-    lat = Column(Float)
-    lon = Column(Float)
+    lat = Column(Float, nullable=False)
+    lon = Column(Float, nullable=False)
     address = Column(String)
     
     # Relationship to DeviceLogs

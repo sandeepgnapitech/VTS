@@ -49,7 +49,7 @@ const GPSDevice = ({ map }) => {
           radius: 12,
           rotation: Math.PI / 2,
           fill: new Fill({
-            color: '#4CAF50'
+            color: 'red'
           }),
           stroke: new Stroke({
             color: '#fff',
@@ -183,8 +183,8 @@ const GPSDevice = ({ map }) => {
       client.on('message', (topic, payload) => {
         try {
           const data = JSON.parse(payload.toString());
-          if (data.lat && data.lon) {
-            updatePosition(data.lat, data.lon, topic);
+          if (data.latitude && data.longitude) {
+            updatePosition(data.latitude, data.longitude, topic);
           }
         } catch (err) {
           console.error('Error parsing MQTT message:', err);
@@ -243,6 +243,7 @@ const GPSDevice = ({ map }) => {
       if (shouldZoom) {
         map.getView().animate({
           center: location,
+          zoom: 16,  // Set the zoom level to 16
           duration: 300
         });
       }

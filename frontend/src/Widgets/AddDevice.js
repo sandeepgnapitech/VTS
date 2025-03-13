@@ -26,10 +26,10 @@ const AddDevice = () => {
       // Prepare the payload
       const payload = {
         ...values,
-        data: {}, // Empty object as per requirement
-        lat: 0,   // Default value as per requirement
-        lon: 0,   // Default value as per requirement
-        address: values.address || "string" // Use provided address or default
+        data: {},
+        lat: 0.0,   // Explicit float for PostgreSQL compatibility
+        lon: 0.0,   // Explicit float for PostgreSQL compatibility
+        address: values.address || null
       };
 
       // Make POST request

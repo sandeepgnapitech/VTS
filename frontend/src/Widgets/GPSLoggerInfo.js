@@ -584,8 +584,8 @@ const GPSLoggerInfo = ({ map }) => {
       // Validate and filter coordinates
       const coordinates = logs
         .filter(log => {
-          const lat = parseFloat(log.data.lat);
-          const lon = parseFloat(log.data.lon);
+          const lat = parseFloat(log.data.latitude);
+          const lon = parseFloat(log.data.longitude);
           // Check if coordinates are valid numbers and within reasonable ranges
           return !isNaN(lat) && !isNaN(lon) && 
                  lat >= -90 && lat <= 90 && 
@@ -594,7 +594,7 @@ const GPSLoggerInfo = ({ map }) => {
         .map(log => {
           try {
             return transform(
-              [parseFloat(log.data.lon), parseFloat(log.data.lat)],
+              [parseFloat(log.data.longitude), parseFloat(log.data.latitude)],
               'EPSG:4326',
               map.getView().getProjection()
             );

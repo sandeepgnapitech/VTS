@@ -5,8 +5,8 @@ class DeviceBase(BaseModel):
     name: str
     description: Optional[str] = None
     data: Optional[Dict] = None
-    lat: float
-    lon: float
+    lat: Optional[float] = None
+    lon: Optional[float] = None
     address: Optional[str] = None
 
 class DeviceCreate(DeviceBase):
